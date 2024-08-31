@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이디어 공유</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f0f4f8;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+        h1 {
+            font-family: 'Georgia', serif;
+            font-size: 2.5rem;
+            color: #007bff;
+            margin-bottom: 40px;
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .form-group label {
+            font-weight: bold;
+            color: #555;
+        }
+        #title, #idea {
+            border-radius: 10px;
+            border: 2px solid #ddd;
+            padding: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        #title:focus, #idea:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        #addBtn {
+            background-color: #007bff;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+        #addBtn:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            border: none;
+            margin-top: 20px;
+            transition: transform 0.2s;
+            background-color: white;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: scale(1.02);
+        }
+        .card-title {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 1.25rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .card-text {
+            color: #555;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            color: #888;
+        }
+        .like-button, .delete-button {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .like-button {
+            color: #007bff;
+        }
+        .like-button i {
+            margin-right: 5px;
+        }
+        .delete-button {
+            color: #dc3545; /* 빨간색 */
+        }
+        .delete-button i {
+            margin-right: 5px;
+        }
+        /* 팝업 스타일 */
+        .modal-header {
+            background-color: #007bff;
+            color: white;
+            border-bottom: none;
+        }
+        .modal-body {
+            padding: 30px;
+        }
+        .modal-footer {
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>아이디어 공유</h1>
+        <div class="form-group">
+            <label for="title">제목</label>
+            <input type="text" id="title" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="idea">아이디어</label>
+            <textarea id="idea" class="form-control"></textarea>
+        </div>
+        <button id="addBtn">추가</button>
+        <div id="ideas" class="row mt-4"></div>
+    </div>
+
+    <!-- Modal for viewing idea -->
+    <div class="modal fade" id="ideaModal" tabindex="-1" aria-labelledby="ideaModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ideaModalLabel">아이디어 제목</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p id="modalIdeaText"></p>
+          </div>
+          <div class="modal-footer">
+            <button id="likeModalBtn" class="btn btn-primary"><i class="fas fa-heart"></i> 좋아요</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+      import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+      // Firebase 구성
+      const firebaseConfig = {
+        apiKey: "AIzaSyD8prcARWBshEqjjjSATMg2QwTIzfY8eu8",
+        authDomain: "do-it-c1474.firebaseapp.com",
+        projectId: "do-it-c1474",
+        storageBucket: "do-it-c1474.appspot.com",
+        messagingSenderId: "738365244578",
+        appId: "1:738365244578:web:e877dddd3ad31c2ad403fb",
+        measurementId: "G-WXRNKYJJJC"
+      };
+
+      // Firebase 초기화
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // 아이디어 추가
+      async function addIdea(title, idea) {
+          const timestamp = new Date().toLocaleDateString();
+          try {
+              await addDoc(collection(db, "ideas"), {
+                  title: title,
+                  idea: idea,
+                  date: timestamp,
+                  likes: 0
+              });
+          } catch (e) {
+              console.error("Error adding document: ", e);
+          }
+      }
+
+      // 아이디어 카드 표시
+      function displayIdea(id, title, idea, date, likes) {
+          const ideasDiv = document.getElementById('ideas');
+          const card = document.createElement('div');
+          card.className = 'col-lg-4 col-md-6 col-sm-12';
+          card.innerHTML = `
+              <div class="card" data-id="${id}">
+                  <div class="card-body">
+                      <h5 class="card-title">${title}</h5>
+                      <p class="card-text">${idea.substring(0, 50)}...</p>
+                  </div>
+                  <div class="card-footer">
+                      <span>${date}</span>
+                      <button class="like-button" data-id="${id}">
+                          <i class="fas fa-heart"></i> <span>${likes}</span>
+                      </button>
+                      <button class="delete-button" data-id="${id}">
+                          <i class="fas fa-trash"></i> 삭제
+                      </button>
+                  </div>
+              </div>
+          `;
+          ideasDiv.appendChild(card);
+
+          // 카드 클릭 시 팝업 표시
+          card.addEventListener('click', () => {
+              document.getElementById('ideaModalLabel').innerText = title;
+              document.getElementById('modalIdeaText').innerText = idea;
+              document.getElementById('likeModalBtn').setAttribute('data-id', id);
+              document.getElementById('likeModalBtn').setAttribute('data-likes', likes);
+              $('#ideaModal').modal('show');
+          });
+
+          // 좋아요 버튼 클릭 시
+          card.querySelector('.like-button').addEventListener('click', (event) => {
+              event.stopPropagation(); // 카드 클릭 방지
+              const likeButton = event.currentTarget;
+              const likeCountElement = likeButton.querySelector('span');
+              const likeCountText = likeCountElement.innerText;
+              const likeCount = parseInt(likeCountText, 10);
+              if (!isNaN(likeCount)) {
+                  incrementLikes(id, likeCount, likeCountElement);
+              } else {
+                  console.error("Invalid like count:", likeCountText);
+              }
+          });
+
+          // 삭제 버튼 클릭 시
+          card.querySelector('.delete-button').addEventListener('click', (event) => {
+              event.stopPropagation(); // 카드 클릭 방지
+              const deleteButton = event.currentTarget;
+              const ideaId = deleteButton.getAttribute('data-id');
+              deleteIdea(ideaId);
+          });
+      }
+
+      // 좋아요 수 증가
+      async function incrementLikes(id, currentLikes, likeCountElement) {
+          const ideaRef = doc(db, "ideas", id);
+          try {
+              await updateDoc(ideaRef, {
+                  likes: currentLikes + 1
+              });
+              likeCountElement.innerText = currentLikes + 1;
+          } catch (e) {
+              console.error("Error updating document: ", e);
+          }
+      }
+
+      // 아이디어 삭제
+      async function deleteIdea(id) {
+          const ideaRef = doc(db, "ideas", id);
+          try {
+              await deleteDoc(ideaRef);
+          } catch (e) {
+              console.error("Error deleting document: ", e);
+          }
+      }
+
+      // 실시간 아이디어 업데이트
+      onSnapshot(collection(db, "ideas"), (snapshot) => {
+          const ideasDiv = document.getElementById('ideas');
+          ideasDiv.innerHTML = ''; // 기존 아이디어 제거
+          snapshot.forEach((doc) => {
+              const data = doc.data();
+              displayIdea(doc.id, data.title, data.idea, data.date, data.likes);
+          });
+      });
+
+      // 아이디어 추가 버튼 클릭 시
+      document.getElementById('addBtn').addEventListener('click', () => {
+          const title = document.getElementById('title').value;
+          const idea = document.getElementById('idea').value;
+
+          if (title && idea) {
+              addIdea(title, idea);
+              document.getElementById('title').value = '';
+              document.getElementById('idea').value = '';
+          }
+      });
+    </script>
+
+    <!-- Bootstrap and jQuery scripts -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
